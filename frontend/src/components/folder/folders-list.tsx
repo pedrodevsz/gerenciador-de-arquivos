@@ -26,6 +26,7 @@ import { DeleteFolder } from "./delete-folder";
 import { LoadingSkeleton } from "../loadings/loading-skeleton";
 import { motion } from "framer-motion";
 import { GenericError } from "../errors/generic-error";
+import { DownloadFolder } from "./download-folder";
 
 
 export function FoldersList() {
@@ -61,7 +62,8 @@ export function FoldersList() {
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                         <TableHead className="w-[30%]">Nome do Diretório</TableHead>
                         <TableHead className="w-[10%] text-center">Arquivos</TableHead>
-                        <TableHead className="w-[40%]">Detalhes do Conteúdo</TableHead>
+                        <TableHead className="w-[30%]">Detalhes do Conteúdo</TableHead>
+                        <TableHead className="w-[10%] text-center">Baixar</TableHead>
                         <TableHead className="w-[10%] text-center">Apagar</TableHead>
                         <TableHead className="w-[10%] text-center">Novo Arquivo</TableHead>
                     </TableRow>
@@ -113,14 +115,17 @@ export function FoldersList() {
                                     </Badge>
                                 </TableCell>
 
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell className="flex items-center text-sm text-muted-foreground">
                                     <FolderContent
                                         folder={folder}
                                         isExpanded={isExpanded}
                                     />
                                 </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                    <DownloadFolder folderName={folder.name} />
+                                </TableCell>
 
-                                <TableCell className="flex justify-center items-center">
+                                <TableCell className="text-sm text-muted-foreground">
                                     <DeleteFolder name={folder.name} />
                                 </TableCell>
 

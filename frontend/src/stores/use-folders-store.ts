@@ -20,6 +20,7 @@ interface FolderStore {
     isLoadingFolders: boolean;
     isCreatingFolder: boolean;
     isUploadingFile: boolean;
+    isDownloadingFolder: boolean;
 
     retryCount: number;
 
@@ -28,6 +29,9 @@ interface FolderStore {
     addFolder: (name: string) => Promise<void>;
     addFileToFolder: (folderName: string, file: File) => Promise<void>;
     removeFolder: (folder: string) => Promise<void>;
+
+    downloadFolder: (folderName: string) => Promise<void>;
+
     clearAll: () => void;
 }
 
@@ -38,6 +42,7 @@ export const useFolderStore = create<FolderStore>((set, get) => ({
     isLoadingFolders: false,
     isCreatingFolder: false,
     isUploadingFile: false,
+    isDownloadingFolder: false,
 
     retryCount: 0,
 
@@ -46,7 +51,6 @@ export const useFolderStore = create<FolderStore>((set, get) => ({
 
         try {
             const data = await folderService.getFolders();
-
             set({
                 folders: data,
                 isLoadingFolders: false,
@@ -130,6 +134,26 @@ export const useFolderStore = create<FolderStore>((set, get) => ({
             }));
         } catch {
             set({ error: "Erro ao remover pasta" });
+        }
+    },
+
+    downloadFolder: async (folderName) => {
+        set({ isDownloadingFolder: true, error: null });
+
+        try {
+            const blob = await folderService.downloadFolder(folderName);
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${folderName}.zip`;
+            a.click();
+
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            set({ error: "Falha ao fazer download da pasta" });
+        } finally {
+            set({ isDownloadingFolder: false });
         }
     },
 

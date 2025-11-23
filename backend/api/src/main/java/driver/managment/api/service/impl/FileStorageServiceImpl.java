@@ -7,12 +7,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
+import java.io.ByteArrayOutputStream;
+
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +44,6 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         @Override
         public String uploadFile(String folderName, MultipartFile file) throws Exception {
-
                 String key = folderName + "/" + file.getOriginalFilename();
 
                 s3Client.putObject(
@@ -54,17 +58,32 @@ public class FileStorageServiceImpl implements FileStorageService {
         }
 
         @Override
+        public byte[] downloadFile(String folder, String fileName) throws Exception {
+                String key = folder + "/" + fileName;
+
+                ResponseBytes<GetObjectResponse> bytes = s3Client.getObjectAsBytes(
+                                GetObjectRequest.builder()
+                                                .bucket(bucket)
+                                                .key(key)
+                                                .build());
+
+                return bytes.asByteArray();
+        }
+
+        @Override
         public List<FolderDTO> listAll() {
                 ListObjectsV2Response res = s3Client.listObjectsV2(
                                 ListObjectsV2Request.builder()
                                                 .bucket(bucket)
                                                 .build());
+
                 Map<String, List<S3Object>> grouped = res.contents().stream()
                                 .filter(obj -> obj.key().contains("/"))
                                 .collect(Collectors.groupingBy(obj -> obj.key().split("/")[0]));
-                List<FolderDTO> folders = new ArrayList<>();
-                for (Map.Entry<String, List<S3Object>> entry : grouped.entrySet()) {
 
+                List<FolderDTO> folders = new ArrayList<>();
+
+                for (Map.Entry<String, List<S3Object>> entry : grouped.entrySet()) {
                         String folderName = entry.getKey();
                         List<S3Object> objects = entry.getValue();
 
@@ -79,6 +98,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
                         folders.add(new FolderDTO(folderName, files));
                 }
+
                 return folders;
         }
 
@@ -89,6 +109,7 @@ public class FileStorageServiceImpl implements FileStorageService {
                                                 .bucket(bucket)
                                                 .prefix(folderName + "/")
                                                 .build());
+
                 for (S3Object obj : res.contents()) {
                         s3Client.deleteObject(
                                         DeleteObjectRequest.builder()
@@ -96,5 +117,47 @@ public class FileStorageServiceImpl implements FileStorageService {
                                                         .key(obj.key())
                                                         .build());
                 }
+        }
+
+        @Override
+        public byte[] downloadFolderAsZip(String folderName) throws Exception {
+
+                ListObjectsV2Response res = s3Client.listObjectsV2(
+                                ListObjectsV2Request.builder()
+                                                .bucket(bucket)
+                                                .prefix(folderName + "/")
+                                                .build());
+
+                if (res.contents().isEmpty()) {
+                        throw new RuntimeException("Pasta vazia ou inexistente.");
+                }
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ZipOutputStream zipOut = new ZipOutputStream(baos);
+
+                for (S3Object obj : res.contents()) {
+
+                        // ignora "pasta" (key terminando com /)
+                        if (obj.key().endsWith("/"))
+                                continue;
+
+                        String fileNameInsideZip = obj.key().replace(folderName + "/", "");
+
+                        // baixa o arquivo do S3
+                        ResponseBytes<GetObjectResponse> fileBytes = s3Client.getObjectAsBytes(
+                                        GetObjectRequest.builder()
+                                                        .bucket(bucket)
+                                                        .key(obj.key())
+                                                        .build());
+
+                        // adiciona ao ZIP
+                        ZipEntry entry = new ZipEntry(fileNameInsideZip);
+                        zipOut.putNextEntry(entry);
+                        zipOut.write(fileBytes.asByteArray());
+                        zipOut.closeEntry();
+                }
+
+                zipOut.close();
+                return baos.toByteArray();
         }
 }

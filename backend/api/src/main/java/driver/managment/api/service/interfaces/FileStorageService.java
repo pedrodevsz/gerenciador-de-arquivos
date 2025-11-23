@@ -13,4 +13,8 @@ public interface FileStorageService {
     List<FolderDTO> listAll();
 
     void deleteFolder(String folderName);
+
+    byte[] downloadFolderAsZip(String folderName) throws Exception;
+
+    byte[] downloadFile(String folderName, String fileName) throws Exception;
 }

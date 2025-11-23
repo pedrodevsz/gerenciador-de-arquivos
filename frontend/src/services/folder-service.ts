@@ -25,4 +25,13 @@ export const folderService = {
     async deleteFolder(name: string) {
         return api.delete(`/storage/folder/${name}`);
     },
+
+    downloadFolder: async (folderName: string): Promise<Blob> => {
+        const res = await api.get("/storage/download-folder", {
+            params: { folder: folderName },
+            responseType: "blob"
+        })
+
+        return res.data
+    }
 };
